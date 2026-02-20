@@ -1,0 +1,114 @@
+--// SERVICES
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local VirtualUser = game:GetService("VirtualUser")
+
+--// PLAYER
+local player = Players.LocalPlayer
+
+--// TOGGLE
+_G.AutoFarm = true
+_G.AutoQuest = true
+_G.FastAttack = true
+_G.BringMob = false
+--// SAFE GET LEVEL
+function GetLevel()
+    if player:FindFirstChild("Data") and player.Data:FindFirstChild("Level") then
+        return player.Data.Level.Value
+    end
+    return 1
+end
+
+--// CHECK ĐANG CÓ QUEST CHƯA
+function HasQuest()
+    if player.PlayerGui:FindFirstChild("Main") then
+        if player.PlayerGui.Main:FindFirstChild("Quest") then
+            return player.PlayerGui.Main.Quest.Visible
+        end
+    end
+    return false
+end
+
+--// GET MOB
+function GetMob()
+    local closest
+    local dist = math.huge
+
+    for _,v in pairs(workspace.Enemies:GetChildren()) do
+        if v:FindFirstChild("Humanoid") 
+        and v:FindFirstChild("HumanoidRootPart") 
+        and v.Humanoid.Health > 0 then
+
+            local mag = (player.Character.HumanoidRootPart.Position - v.HumanoidRootPart.Position).Magnitude
+            if mag < dist then
+                dist = mag
+                closest = v
+            end
+        end
+    end
+
+    return closest
+end
+
+--// AUTO FARM LOOP
+task.spawn(function()
+    while task.wait(0.2) do
+        if AutoFarm and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            pcall(function()
+
+          task.spawn(function()
+    while task.wait(0.2) do
+        if _G.AutoFarm then
+            if not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then
+                continue
+            end
+
+            pcall(function()
+
+                -- AUTO QUEST
+                if _G.AutoQuest and not HasQuest() then
+                    if CheckQuest then
+                        local q,id = CheckQuest()
+                        if q then
+                            ReplicatedStorage.Remotes.CommF_:InvokeServer("StartQuest",q,id)
+                            task.wait(1)
+                        end
+                    end
+                end
+
+                local mob = GetMob()
+                if mob then
+                    repeat task.wait()
+
+                        player.Character.HumanoidRootPart.CFrame =
+                            mob.HumanoidRootPart.CFrame * CFrame.new(0,12,0)
+
+                        -- FAST ATTACK
+                        if _G.FastAttack then
+                            VirtualUser:CaptureController()
+                            VirtualUser:Button1Down(Vector2.new(0,0))
+                            VirtualUser:Button1Up(Vector2.new(0,0))
+                        end
+
+                        -- BRING MOB
+                        if _G.BringMob then
+                            for _,v in pairs(workspace.Enemies:GetChildren()) do
+                                if v ~= mob
+                                and v:FindFirstChild("HumanoidRootPart")
+                                and v:FindFirstChild("Humanoid")
+                                and v.Humanoid.Health > 0 then
+
+                                    if (v.HumanoidRootPart.Position - mob.HumanoidRootPart.Position).Magnitude < 250 then
+                                        v.HumanoidRootPart.CFrame = mob.HumanoidRootPart.CFrame
+                                    end
+                                end
+                            end
+                        end
+
+                    until not _G.AutoFarm or mob.Humanoid.Health <= 0
+                end
+
+            end)
+        end
+    end
+end)
